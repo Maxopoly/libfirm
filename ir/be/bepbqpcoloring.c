@@ -52,6 +52,9 @@
 #include "pbqp_node.h"
 #include "pbqp_edge_t.h"
 
+
+#include "CInterface.h"
+
 #define TIMER                 0
 #define PRINT_RPEO            0
 #define USE_BIPARTIT_MATCHING 0
@@ -633,6 +636,37 @@ static void be_pbqp_coloring(be_chordal_env_t *env)
 #if TIMER
 	ir_timer_reset_and_start(t_ra_pbqp_alloc_solve);
 #endif
+	//Custom pbqp-papa integration START
+	enableNodeRemapping();
+	for(size_t nodeCount = 0; nodeCount < pbqp_alloc_env.pbqp_inst->num_nodes; nodeCount++) {
+		pbqp_node_t *node = (pbqp_alloc_env.pbqp_inst->nodes) [nodeCount];
+		unsigned long dataArray [node->costs->len];
+			for(size_t i = 0; i < node->costs->len; i++) {
+				dataArray [i] = ((node->costs->entries) [i]).data;
+			}
+		addNode(dataArray, node->costs->len, node->index);
+		free(dataArray);
+	}
+	for(size_t nodeCount = 0; nodeCount < pbqp_alloc_env.pbqp_inst->num_nodes; nodeCount++) {
+		pbqp_node_t *node = (pbqp_alloc_env.pbqp_inst->nodes) [nodeCount];
+		size_t len = ARR_LEN(node->edges);
+			for (size_t i = 0; i < len; ++i) {
+				pbqp_edge_t *cur_edge = node->edges[i];
+				if (cur_edge->src == node) {
+					unsigned matLength = cur_edge->costs->rows * cur_edge->costs->cols;
+					unsigned long dataArray [matLength];
+					for (size_t kk = 0; kk < matLength; ++kk) {
+						dataArray [kk] = cur_edge->costs->entries [kk];
+					}
+					addEdge(cur_edge->src->index, cur_edge->tgt->index, dataArray);
+					free(dataArray);
+				}
+			}
+
+	}
+	dump();
+
+	//Custom pbqp-papa integration END
 	if (use_late_decision) {
 		solve_pbqp_heuristical_co_ld(pbqp_alloc_env.pbqp_inst,
 		                             &pbqp_alloc_env.rpeo);
