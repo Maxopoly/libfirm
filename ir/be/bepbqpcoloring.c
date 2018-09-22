@@ -636,19 +636,26 @@ static void be_pbqp_coloring(be_chordal_env_t *env)
 #if TIMER
 	ir_timer_reset_and_start(t_ra_pbqp_alloc_solve);
 #endif
+	
 	//Custom pbqp-papa integration START
 	enableNodeRemapping();
-	for(size_t nodeCount = 0; nodeCount < pbqp_alloc_env.pbqp_inst->num_nodes; nodeCount++) {
+	unsigned node_len = pbqp_alloc_env.pbqp_inst->num_nodes;
+	setNodeAmount(node_len);
+	for(unsigned nodeCount = 0; nodeCount < node_len; nodeCount++) {
 		pbqp_node_t *node = (pbqp_alloc_env.pbqp_inst->nodes) [nodeCount];
+		//why are there random null pointers in this array?
+		if (!node) continue;
 		unsigned long dataArray [node->costs->len];
-			for(size_t i = 0; i < node->costs->len; i++) {
-				dataArray [i] = ((node->costs->entries) [i]).data;
-			}
+
+		for(size_t i = 0; i < node->costs->len; i++) {
+			dataArray [i] = ((node->costs->entries) [i]).data;
+		}
 		addNode(dataArray, node->costs->len, node->index);
-		free(dataArray);
 	}
-	for(size_t nodeCount = 0; nodeCount < pbqp_alloc_env.pbqp_inst->num_nodes; nodeCount++) {
+
+	for(unsigned nodeCount = 0; nodeCount < node_len; nodeCount++) {
 		pbqp_node_t *node = (pbqp_alloc_env.pbqp_inst->nodes) [nodeCount];
+		if (!node) continue;
 		size_t len = ARR_LEN(node->edges);
 			for (size_t i = 0; i < len; ++i) {
 				pbqp_edge_t *cur_edge = node->edges[i];
@@ -659,14 +666,15 @@ static void be_pbqp_coloring(be_chordal_env_t *env)
 						dataArray [kk] = cur_edge->costs->entries [kk];
 					}
 					addEdge(cur_edge->src->index, cur_edge->tgt->index, dataArray);
-					free(dataArray);
 				}
 			}
 
-	}
+	} 
 	dump();
 
 	//Custom pbqp-papa integration END
+	
+
 	if (use_late_decision) {
 		solve_pbqp_heuristical_co_ld(pbqp_alloc_env.pbqp_inst,
 		                             &pbqp_alloc_env.rpeo);
